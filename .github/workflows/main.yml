@@ -1,0 +1,62 @@
+
+name: Build Standalone GD DLL
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Locate standalone project
+        id: project
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $projects = @(Get-ChildItem -Path . -Filter CMakeLists.txt -File -Recurse |
+            Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' })
+          if ($projects.Count -ne 1) {
+            throw "Expected exactly one CMakeLists.txt; found $($projects.Count). Upload only the standalone source project."
+          }
+          $dir = $projects[0].DirectoryName
+          foreach ($required in @('src/Proxy.cpp', 'src/xinput.def', 'tests/predictor_tests.cpp')) {
+            if (-not (Test-Path (Join-Path $dir $required))) {
+              throw "Missing $required. This must be the standalone project."
+            }
+          }
+          "dir=$dir" >> $env:GITHUB_OUTPUT
+          Write-Host "Standalone project: $dir"
+
+      - name: Configure Visual Studio x64
+        shell: pwsh
+        run: cmake -S "${{ steps.project.outputs.dir }}" -B "${{ steps.project.outputs.dir }}/build" -G "Visual Studio 17 2022" -A x64
+
+      - name: Build DLL and tests
+        shell: pwsh
+        run: cmake --build "${{ steps.project.outputs.dir }}/build" --config Release --parallel
+
+      - name: Run prediction tests
+        shell: pwsh
+        run: ctest --test-dir "${{ steps.project.outputs.dir }}/build" -C Release --output-on-failure
+
+      - name: Verify DLL was produced
+        shell: pwsh
+        run: |
+          $dll = Join-Path "${{ steps.project.outputs.dir }}" 'build/Release/XINPUT9_1_0.dll'
+          if (-not (Test-Path $dll)) { throw "Missing compiled DLL: $dll" }
+          Write-Host "Compiled DLL: $dll"
+
+      - name: Upload standalone DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: GD-Standalone-SafeClick-Win64
+          path: ${{ steps.project.outputs.dir }}/build/Release/XINPUT9_1_0.dll
+          if-no-files-found: error
