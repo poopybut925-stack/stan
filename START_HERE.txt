@@ -1,0 +1,12 @@
+STANDALONE SAFECLICK v0.1 (NOT A PREDICTIVE-CORRECTION MOD YET)
+
+1. Create a NEW GitHub repo to avoid the broken Geode build files.
+2. Extract this ZIP; upload the CONTENTS, including the .github folder, to repo root.
+   NOTE: GitHub web upload may omit hidden .github; create it manually if needed.
+3. Actions -> Build native standalone GD mod -> Run workflow.
+4. Download the green run's artifact. Extract XINPUT9_1_0.dll.
+5. Copy it next to GeometryDash.exe ONLY if XINPUT9_1_0.dll isn't already there.
+6. Open GD. Check gd_native_safeclick.log. F6 toggles input-event logs.
+
+This proves native DLL loading and observing input. Predictive safe clicks still
+require reading game physics & objects; the stand-alone engine is in src/.
